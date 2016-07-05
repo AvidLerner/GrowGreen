@@ -2,8 +2,13 @@
 #include <EEPROMVar.h>
 #include <Adafruit_RGBLCDShield.h>
 #include <utility/Adafruit_MCP23017.h>
-#define DHT11_PIN 0      // ADC0 Analog pin A0analog input A0
-// select the pins used on the LCD panel
+//#include <dht11.h>  
+// setup DHT for use
+//dht11 DHT;
+// DHT data  pin
+#define DHT11_PIN 0 // ADC0 for Uno
+int DHT11Temp = 0;
+int DHT11Hum = 0;
 /* completed 6/23/16 executes the menu system, display date, time, 
 temperature and humidity and runs throuhg screens and loops correctly.
 define some values used by the panel and buttons
@@ -30,8 +35,10 @@ byte btnCurrIteration;
 // backlight on/off
 #define ON 0x1
 #define OFF 0x0
+// lcd screen variable
+int LCD_R=16;  // lcd rows
+int LCD_C=2;  // lcd columns
 // establish temperature humidity pin on A0
-#define DHT11_PIN 0     // what pin we're connected to
 //create manual override variables
 boolean override = false;
 byte overmenu = 0;
@@ -39,15 +46,15 @@ int overpercent = 0;
 // button read variables for lcd shield
 uint8_t i=0;
 uint8_t buttons =0;
-
+//------------------- system variables-----------------------//
 int minCounter = 0;         // counter that resets at midnight.
 int oldMinCounter = 0;      // counter that resets at midnight.
 int oneLed = 9;             // pin for channel 1
 int twoLed = 10;            // pin for channel 2
 int threeLed = 11;          // pin for channel 3
-int fourLed = 3;            // pin for channel 4
-int fiveLed = 4;            // pin for channel 5
-int sixLed = 5;             // pin for channel 6
+int fourLed = 5;            // pin for channel 4
+int fiveLed = 6;            // pin for channel 5
+int sixLed = 7;             // pin for channel 6
 int oneVal = 0;             // current value for channel 1
 int twoVal = 0;             // current value for channel 2
 int threeVal = 0;           // current value for channel 3
@@ -60,15 +67,13 @@ int dhtCTemp=0;
 int dhtHumidity=0;
 double dhtDTemp=0;
 double dhtDHumidity=0;
-
 // Variables making use of EEPROM memory:
-
 EEPROMVar<int> oneStartMins = 360;      // minute to start this channel.
 EEPROMVar<int> onePhotoPeriod = 720;   // photoperiod in minutes for this channel.
 EEPROMVar<int> oneMax = 100;           // max intensity for this channel, as a percentage
 EEPROMVar<int> oneFadeDuration = 60;   // duration of the fade on and off for sunrise and sunset for
                                        //    this channel.
-EEPROMVar<int> twoStartMins = 360;  //1330
+EEPROMVar<int> twoStartMins = 360;  //  6:am
 EEPROMVar<int> twoPhotoPeriod = 720; //
 EEPROMVar<int> twoMax = 100;
 EEPROMVar<int> twoFadeDuration = 60;
@@ -78,52 +83,20 @@ EEPROMVar<int> threePhotoPeriod = 720;
 EEPROMVar<int> threeMax = 100;
 EEPROMVar<int> threeFadeDuration = 60;
                             
-EEPROMVar<int> fourStartMins = 360;
+EEPROMVar<int> fourStartMins = 1050;  // 6:pm
 EEPROMVar<int> fourPhotoPeriod = 720;  
 EEPROMVar<int> fourMax = 100;          
 EEPROMVar<int> fourFadeDuration = 60; 
 
-EEPROMVar<int> fiveStartMins = 360;
+EEPROMVar<int> fiveStartMins = 1050;
 EEPROMVar<int> fivePhotoPeriod = 720;  
 EEPROMVar<int> fiveMax = 100;          
 EEPROMVar<int> fiveFadeDuration = 60; 
 
-EEPROMVar<int> sixStartMins = 360;
+EEPROMVar<int> sixStartMins = 1050;
 EEPROMVar<int> sixPhotoPeriod = 720;  
 EEPROMVar<int> sixMax = 100;          
 EEPROMVar<int> sixFadeDuration = 60; 
-
-/*
-int oneStartMins = 1380;      // minute to start this channel.
-int onePhotoPeriod = 120;   // photoperiod in minutes for this channel.
-int oneMax = 100;           // max intensity for this channel, as a percentage
-int oneFadeDuration = 60;   // duration of the fade on and off for sunrise and sunset for
-                                       //    this channel.                                    
-int twoStartMins = 800;
-int twoPhotoPeriod = 60;
-int twoMax = 100;
-int twoFadeDuration = 15;
-
-int threeStartMins = 800;
-int threePhotoPeriod = 60;
-int threeMax = 100;
-int threeFadeDuration = 30;
-                            
-int fourStartMins = 800;
-int fourPhotoPeriod = 120;  
-int fourMax = 100;          
-int fourFadeDuration = 60;  
-
-int fiveStartMins = 800;
-int fivePhotoPeriod = 60;
-int fiveMax = 100;
-int fiveFadeDuration = 30;
-                            
-int sixStartMins = 800;
-int sixPhotoPeriod = 120;  
-int sixMax = 100;          
-int sixFadeDuration = 60;  
-*/
 // variables to invert the output PWM signal,
 // for use with drivers that consider 0 to be "on"
 // i.e. buckpucks. If you need to provide an inverted 
@@ -139,11 +112,76 @@ int state = 0;       // state of keypress master state = 1 means read keypres
 int h = 0;  // hours
 int m = 0;  // minutes
 int s = 0;  // seconds
+//-----------print functions ------------------/
+void PrintBegin()
+{
+  lcd.begin(LCD_R, LCD_C);   // start the library  
+  lcd.setBacklight(ON);
+   
+}
+void printTempMenu()
+  {
+  lcd.setCursor(12,1);
+  lcd.print(dhtFTemp);
+  lcd.setCursor(15,1);
+  lcd.print((char)223);
+  //lcd.setCursor(13,0);
+  //lcd.print(dhtHumidity);
+  //lcd.setCursor(15,0);
+  //lcd.print("%");
+  }
+  void printTempHumidityMenu()
+  {
+  lcd.setCursor(9,0);
+  lcd.print(dhtFTemp);
+  lcd.setCursor(12,0);
+  lcd.print((char)223);
+  lcd.setCursor(13,0);
+  lcd.print(dhtHumidity);
+  lcd.setCursor(15,0);
+  lcd.print("%");
+  }
+//  setup serial printer for use
+void SPrintBegin()
+  {
+  Serial.begin(9600);
+  Serial.println("Ready"); 
+  }
 
-// lcd screen variable
-int LCD_R=16;  // lcd rows
-int LCD_C=2;  // lcd columns
+// clean lcd screen
+void cleanScreen()
+{
+  lcd.setCursor(0,0);
+  lcd.print("                "); 
+  lcd.setCursor(0,1);
+  lcd.print("                ");
+}
+// readButtons from lcd shield
+void ReadButtons()
+   {
+    uint8_t buttons = lcd.readButtons();
 
+  if (buttons) {
+    lcd.clear();
+    lcd.setCursor(0,0);
+    if (buttons & BUTTON_UP) {
+      lcd.setBacklight(ON);
+    }
+    if (buttons & BUTTON_DOWN) {
+     lcd.setBacklight(ON);
+    }
+    if (buttons & BUTTON_LEFT) {
+      lcd.setBacklight(ON);
+    }
+    if (buttons & BUTTON_RIGHT) {
+      lcd.setBacklight(ON);
+    }
+    if (buttons & BUTTON_SELECT) {
+      lcd.setBacklight(ON);
+    }
+  }
+}
+// end ReadButtons
 /****** RTC Functions ******/
 /***************************/
 
@@ -297,11 +335,11 @@ void printHMS (byte hr,
       lcd.print("0");
     }
     lcd.print(mn, DEC);
-    lcd.print(":");
-    if(sec<10){
-      lcd.print("0");
-    }
-    lcd.print(sec, DEC);
+    //lcd.print(":");
+    //if(sec<10){
+      //lcd.print("0");
+    //}
+    //lcd.print(sec, DEC);
 }
 void ovrSetAll(int pct){
     analogWrite(oneLed,map(pct,0,100,0,255));
@@ -312,8 +350,19 @@ void ovrSetAll(int pct){
     analogWrite(sixLed,map(pct,0,100,0,255));
 }
 // setup ddrc and portc for temp/humidity sensor
+// DHT11_GetData Use with Mega 2560 simple and direct
+/*
+void GetDHT11Data()
+{
+int chk = DHT.read(DHT11_PIN);    // READ DATA
+  DHT11Temp = (int) round(DHT.temperature);
+  dhtHumidity = DHT.humidity;
+  dhtFTemp =  (int)round((1.8*DHT11Temp)+32);
+}
+// use for Uno compile does not work with Mega 2560
+*/
 void DHTSetup(){
-  DDRC |= _BV(DHT11_PIN);
+   DDRC |= _BV(DHT11_PIN);
   PORTC |= _BV(DHT11_PIN);
   }
 // read dht11 data line for input get current temperature and humidity
@@ -332,7 +381,10 @@ byte read_dht11_dat()
     }
     return result;
 }
+
 // read data for input from dht11 temp/humidity sensor 
+// use for Uno compile does not work with mega 2560
+
 void GetDHTData()
   {
   byte dht11_dat[5];
@@ -349,15 +401,16 @@ void GetDHTData()
   dht11_in = PINC & _BV(DHT11_PIN);
   if(dht11_in)
   {
-    Serial.println("dht11 start condition 1 not met");
-    lcd.print("DHT11 checksum error");
+   // Serial.println("dht11 start condition 1 not met");
+    
     return;
   }
   delayMicroseconds(80);
   dht11_in = PINC & _BV(DHT11_PIN);
   if(!dht11_in)
   {
-    Serial.println("dht11 start condition 2 not met");
+    //Serial.println("dht11 start condition 2 not met");
+   
     return;
   }
   
@@ -370,30 +423,23 @@ void GetDHTData()
   if(dht11_dat[4]!= dht11_check_sum)
   
   {
-    Serial.println("DHT11 checksum error");
+    //Serial.println("DHT11 checksum error");
+    
   }
   dhtCTemp=(int) round(dht11_dat[2]);
   //double dhtDTemp= double dht11_dat[2];
   dhtFTemp=(int)round(1.8*dht11_dat[2]+32);
   dhtHumidity=(int) dht11_dat[0];
   //double dhtDHumidity= double dht11_dat[0];
-  } // end read data
-void printTempMenu()
-  {
-  lcd.setCursor(9,0);
-  lcd.print(dhtFTemp);
-  lcd.setCursor(11,0);
-  lcd.print((char)223);
-  lcd.setCursor(13,0);
-  lcd.print(dhtHumidity);
-  lcd.setCursor(15,0);
-  lcd.print("%");
-  }
+  } // end read data DHT11
+  //temperture menu
+
 // void setup
 void setup()
 {
-DHTSetup();
 Wire.begin();
+DHTSetup();
+
 // setup lcd screen object
 PrintBegin();
 // set serial printer
@@ -447,8 +493,8 @@ void loop(){
   twoVal = setLed(minCounter, twoLed, twoStartMins, twoPhotoPeriod, twoFadeDuration, twoMax, twoInverted);
   threeVal = setLed(minCounter, threeLed, threeStartMins, threePhotoPeriod, threeFadeDuration, threeMax, threeInverted);
   fourVal = setLed(minCounter, fourLed, fourStartMins, fourPhotoPeriod, fourFadeDuration, fourMax, fourInverted);
-  fiveVal = setLed(minCounter, threeLed, threeStartMins, threePhotoPeriod, threeFadeDuration, threeMax, threeInverted);
-  sixVal = setLed(minCounter, fourLed, fourStartMins, fourPhotoPeriod, fourFadeDuration, fourMax, fourInverted);
+  fiveVal = setLed(minCounter, fiveLed, fiveStartMins, fivePhotoPeriod, fiveFadeDuration, fiveMax, fiveInverted);
+  sixVal = setLed(minCounter, sixLed, sixStartMins, sixPhotoPeriod, sixFadeDuration, sixMax, sixInverted);
   
   }
   else{
@@ -458,7 +504,7 @@ void loop(){
   
   //turn the backlight off and reset the menu if the idle time has elapsed
   if(bklTime + bklDelay < millis() && bklTime > 0 ){
-    lcd.setBacklight(OFF);
+    //lcd.setBacklight(OFF);
     menuCount = 1;
     lcd.clear();
     bklTime = 0;
@@ -475,7 +521,7 @@ void loop(){
       menuCount = 1;
     }
   lcd.clear();
-  }
+  } // end if
 //main screen turn on!!! 
   
   if(menuCount == 1){
@@ -483,20 +529,20 @@ void loop(){
     if (minCounter > oldMinCounter){
       lcd.clear();
     }
-    lcd.setCursor(0,0);
+    lcd.setCursor(11,0);
     printHMS(hour, minute, second);
-    lcd.setCursor(0,1);
+    lcd.setCursor(0,0);
     lcd.print(oneVal);
-    lcd.setCursor(4,1);
+    lcd.setCursor(4,0);
     lcd.print(twoVal);
-    lcd.setCursor(8,1);
+    lcd.setCursor(8,0);
     lcd.print(threeVal);
-    lcd.setCursor(12,1);
+    lcd.setCursor(0,1);
     lcd.print(fourVal);
-    //lcd.setCursor(12,1);
-    //lcd.print(fiveVal);
-    //lcd.setCursor(15,1);
-    //lcd.print(sixVal);
+    lcd.setCursor(4,1);
+    lcd.print(fiveVal);
+    lcd.setCursor(8,1);
+    lcd.print(sixVal);
     // print temperature/humidity
     GetDHTData();
     printTempMenu();
@@ -884,18 +930,18 @@ void loop(){
     lcd.setCursor(0,0);
     lcd.print("Channel 5 Start");
     lcd.setCursor(0,1);
-    printMins(fourStartMins, true);
-    if((buttons & BUTTON_RIGHT) && fourStartMins < 1440){
-        fourStartMins++;
-        if(fourPhotoPeriod >0){fourPhotoPeriod--;}
-        else{fourPhotoPeriod=1439;}
+    printMins(fiveStartMins, true);
+    if((buttons & BUTTON_RIGHT) && fiveStartMins < 1440){
+        fiveStartMins++;
+        if(fivePhotoPeriod >0){fivePhotoPeriod--;}
+        else{fivePhotoPeriod=1439;}
         delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
-    if((buttons & BUTTON_LEFT) && fourStartMins > 0){
+    if((buttons & BUTTON_LEFT) && fiveStartMins > 0){
         fourStartMins--;
-        if(fourPhotoPeriod<1439){fourPhotoPeriod++;}
-        else{fourPhotoPeriod=0;}
+        if(fivePhotoPeriod<1439){fivePhotoPeriod++;}
+        else{fivePhotoPeriod=0;}
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
@@ -905,21 +951,21 @@ void loop(){
     lcd.setCursor(0,0);
     lcd.print("Channel 5 End");
     lcd.setCursor(0,1);
-    printMins(fourStartMins+fourPhotoPeriod, true);
+    printMins(fiveStartMins+fivePhotoPeriod, true);
     if(buttons & BUTTON_RIGHT){
-      if(fourPhotoPeriod < 1439){
-      fourPhotoPeriod++;}
+      if(fivePhotoPeriod < 1439){
+      fivePhotoPeriod++;}
       else{
-        fourPhotoPeriod=0;
+        fivePhotoPeriod=0;
       }
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
     if(buttons & BUTTON_LEFT){
-      if(fourPhotoPeriod >0){
-        fourPhotoPeriod--;}
+      if(fivePhotoPeriod >0){
+        fivePhotoPeriod--;}
       else{
-        fourPhotoPeriod=1439;
+        fivePhotoPeriod=1439;
       }
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
@@ -930,14 +976,14 @@ void loop(){
     lcd.setCursor(0,0);
     lcd.print("Channel 5 Fade");
     lcd.setCursor(0,1);
-    printMins(fourFadeDuration, false);
-    if((buttons & BUTTON_RIGHT) && (fourFadeDuration < fourPhotoPeriod/2 || fourFadeDuration == 0)){
-      fourFadeDuration++;
+    printMins(fiveFadeDuration, false);
+    if((buttons & BUTTON_RIGHT) && (fiveFadeDuration < fivePhotoPeriod/2 || fiveFadeDuration == 0)){
+      fiveFadeDuration++;
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
-    if((buttons & BUTTON_LEFT) && fourFadeDuration > 1){
-      fourFadeDuration--;
+    if((buttons & BUTTON_LEFT) && fiveFadeDuration > 1){
+      fiveFadeDuration--;
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
@@ -947,15 +993,15 @@ void loop(){
     lcd.setCursor(0,0);
     lcd.print("Channel 5 Max");
     lcd.setCursor(1,1);
-    lcd.print(fourMax);
+    lcd.print(fiveMax);
     lcd.print("   ");
-    if((buttons & BUTTON_RIGHT) && fourMax < 100){
-      fourMax++;
+    if((buttons & BUTTON_RIGHT) && fiveMax < 100){
+      fiveMax++;
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
-    if((buttons & BUTTON_LEFT) && fourMax > 0){
-      fourMax--;
+    if((buttons & BUTTON_LEFT) && fiveMax > 0){
+      fiveMax--;
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
@@ -965,18 +1011,18 @@ void loop(){
     lcd.setCursor(0,0);
     lcd.print("Channel 6 Start");
     lcd.setCursor(0,1);
-    printMins(fourStartMins, true);
-    if((buttons & BUTTON_RIGHT) && fourStartMins < 1440){
-        fourStartMins++;
-        if(fourPhotoPeriod >0){fourPhotoPeriod--;}
-        else{fourPhotoPeriod=1439;}
+    printMins(sixStartMins, true);
+    if((buttons & BUTTON_RIGHT) && sixStartMins < 1440){
+        sixStartMins++;
+        if(sixPhotoPeriod >0){sixPhotoPeriod--;}
+        else{sixPhotoPeriod=1439;}
         delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
     if((buttons & BUTTON_LEFT) && fourStartMins > 0){
-        fourStartMins--;
-        if(fourPhotoPeriod<1439){fourPhotoPeriod++;}
-        else{fourPhotoPeriod=0;}
+        sixStartMins--;
+        if(sixPhotoPeriod<1439){sixPhotoPeriod++;}
+        else{sixPhotoPeriod=0;}
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
@@ -986,21 +1032,21 @@ void loop(){
     lcd.setCursor(0,0);
     lcd.print("Channel 6 End");
     lcd.setCursor(0,1);
-    printMins(fourStartMins+fourPhotoPeriod, true);
+    printMins(sixStartMins+sixPhotoPeriod, true);
     if(buttons & BUTTON_RIGHT){
-      if(fourPhotoPeriod < 1439){
-      fourPhotoPeriod++;}
+      if(sixPhotoPeriod < 1439){
+      sixPhotoPeriod++;}
       else{
-        fourPhotoPeriod=0;
+        sixPhotoPeriod=0;
       }
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
     if(buttons & BUTTON_LEFT){
-      if(fourPhotoPeriod >0){
-        fourPhotoPeriod--;}
+      if(sixPhotoPeriod >0){
+        sixPhotoPeriod--;}
       else{
-        fourPhotoPeriod=1439;
+        sixPhotoPeriod=1439;
       }
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
@@ -1012,13 +1058,13 @@ void loop(){
     lcd.print("Channel 6 Fade");
     lcd.setCursor(0,1);
     printMins(fourFadeDuration, false);
-    if((buttons & BUTTON_RIGHT) && (fourFadeDuration < fourPhotoPeriod/2 || fourFadeDuration == 0)){
-      fourFadeDuration++;
+    if((buttons & BUTTON_RIGHT) && (sixFadeDuration < sixPhotoPeriod/2 || sixFadeDuration == 0)){
+      sixFadeDuration++;
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
-    if((buttons & BUTTON_LEFT) && fourFadeDuration > 1){
-      fourFadeDuration--;
+    if((buttons & BUTTON_LEFT) && sixFadeDuration > 1){
+      sixFadeDuration--;
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
@@ -1028,15 +1074,15 @@ void loop(){
     lcd.setCursor(0,0);
     lcd.print("Channel 6 Max");
     lcd.setCursor(1,1);
-    lcd.print(fourMax);
+    lcd.print(sixMax);
     lcd.print("   ");
-    if((buttons & BUTTON_RIGHT) && fourMax < 100){
-      fourMax++;
+    if((buttons & BUTTON_RIGHT) && sixMax < 100){
+      sixMax++;
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
-    if((buttons & BUTTON_LEFT) && fourMax > 0){
-      fourMax--;
+    if((buttons & BUTTON_LEFT) && sixMax > 0){
+      sixMax--;
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
@@ -1078,52 +1124,4 @@ void loop(){
   setDate(second, minute, hour, dayOfWeek, dayOfMonth, month, year);
   } // end menu count 28
 }  // end loop
-// setup lcd for use
-void PrintBegin()
-{
-  lcd.begin(LCD_R, LCD_C);   // start the library  
-  lcd.setBacklight(ON);
-   
-}
-//  setup serial printer for use
-void SPrintBegin()
-  {
-  Serial.begin(9600);
-  Serial.println("Ready"); 
-  }
-
-// clean lcd screen
-void cleanScreen()
-{
-  lcd.setCursor(0,0);
-  lcd.print("                "); 
-  lcd.setCursor(0,1);
-  lcd.print("                ");
-}
-// readButtons from lcd shield
-void ReadButtons()
-   {
-    uint8_t buttons = lcd.readButtons();
-
-  if (buttons) {
-    lcd.clear();
-    lcd.setCursor(0,0);
-    if (buttons & BUTTON_UP) {
-      lcd.setBacklight(ON);
-    }
-    if (buttons & BUTTON_DOWN) {
-     lcd.setBacklight(ON);
-    }
-    if (buttons & BUTTON_LEFT) {
-      lcd.setBacklight(ON);
-    }
-    if (buttons & BUTTON_RIGHT) {
-      lcd.setBacklight(ON);
-    }
-    if (buttons & BUTTON_SELECT) {
-      lcd.setBacklight(ON);
-    }
-  }
-}
-// end ReadButtons
 // end of sketch
