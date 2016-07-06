@@ -430,9 +430,9 @@ void loop(){
   
   if(menuCount == 1){
    
-    //if (minCounter > oldMinCounter){
-    //  lcd.clear();
-    //}
+    if (minCounter > oldMinCounter){
+      cleanScreen();
+    }
     lcd.setCursor(11,1);  // print time line 2 RH side
     printHMS(hour, minute, second);
     lcd.setCursor(0,0);
@@ -448,7 +448,7 @@ void loop(){
     lcd.setCursor(8,1);
     lcd.print(sixVal);
     //debugging function to use the select button to advance the timer by 1 minute
-    //if(select.uniquePress()){setDate(second, minute+1, hour, dayOfWeek, dayOfMonth, month, year);}
+    //if(buttons  && BUTTON_SELECT()){setDate(second, minute+1, hour, dayOfWeek, dayOfMonth, month, year);}
   }
   
   //Manual Override Menu
