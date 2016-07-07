@@ -12,7 +12,7 @@ define some values used by the panel and buttons
 // the I2C bus.
 Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
 // set up backlight
-int bklDelay    = 50000;    // ms for the backlight to idle before turning off
+int bklDelay    = 100000;    // ms for the backlight to idle before turning off
 unsigned long bklTime = 0;  // counter since backlight turned on
 // create the menu counter
 int menuCount   = 1;
@@ -405,15 +405,14 @@ void loop(){
     ovrSetAll(overpercent);
   }
   
-/*  
+  
   //turn the backlight off and reset the menu if the idle time has elapsed
   if(bklTime + bklDelay < millis() && bklTime > 0 ){
-    lcd.setBacklight(OFF);
     menuCount = 1;
     lcd.clear();
     bklTime = 0;
   }
-*/
+
   //iterate through the menus
   uint8_t buttons = lcd.readButtons();
   if(buttons & BUTTON_SELECT){
@@ -433,7 +432,7 @@ void loop(){
     if (minCounter > oldMinCounter){
       cleanScreen();
     }
-    lcd.setCursor(11,1);  // print time line 2 RH side
+    lcd.setCursor(12,1);  // print time line 2 RH side
     printHMS(hour, minute, second);
     lcd.setCursor(0,0);
     lcd.print(oneVal);
