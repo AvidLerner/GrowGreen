@@ -19,7 +19,7 @@ define some values used by the panel and buttons
 // the I2C bus.
 Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
 // set up backlight
-int bklDelay    = 10000;    // ms for the backlight to idle before turning off
+int bklDelay    = 100000;    // ms for the backlight to idle before turning off
 unsigned long bklTime = 0;  // counter since backlight turned on
 // create the menu counter
 int menuCount   = 1;
@@ -121,9 +121,9 @@ void PrintBegin()
 }
 void printTempMenu()
   {
-  lcd.setCursor(12,1);
+  lcd.setCursor(12,0);
   lcd.print(dhtFTemp);
-  lcd.setCursor(15,1);
+  lcd.setCursor(15,0);
   lcd.print((char)223);
   //lcd.setCursor(13,0);
   //lcd.print(dhtHumidity);
@@ -162,22 +162,22 @@ void ReadButtons()
     uint8_t buttons = lcd.readButtons();
 
   if (buttons) {
-    lcd.clear();
-    lcd.setCursor(0,0);
+    //lcd.clear();
+    //lcd.setCursor(0,0);
     if (buttons & BUTTON_UP) {
-      lcd.setBacklight(ON);
+     
     }
     if (buttons & BUTTON_DOWN) {
-     lcd.setBacklight(ON);
+    
     }
     if (buttons & BUTTON_LEFT) {
-      lcd.setBacklight(ON);
+     
     }
     if (buttons & BUTTON_RIGHT) {
-      lcd.setBacklight(ON);
+     
     }
     if (buttons & BUTTON_SELECT) {
-      lcd.setBacklight(ON);
+      
     }
   }
 }
@@ -432,13 +432,30 @@ void GetDHTData()
   dhtHumidity=(int) dht11_dat[0];
   //double dhtDHumidity= double dht11_dat[0];
   } // end read data DHT11
-  //temperture menu
+//temperture menu
+// showChannelValues()  print channel values to lcd
+void showChannelValues() { // display the current intensity for each led channel
+byte second, minute, hour, dayOfWeek, dayOfMonth, month, year;
+char buffer[17];
+lcd.noCursor();
+lcd.noBlink();
+getDate(&second, &minute, &hour, &dayOfWeek, &dayOfMonth, &month, &year);
+lcd.noCursor();
+lcd.noBlink();
+lcd.setCursor(0,0);
+sprintf(buffer, "%3d %3d %3d", oneVal, twoVal, threeVal);
+lcd.print(buffer);
+lcd.setCursor(0,1);
+sprintf(buffer, "%3d %3d %3d%2d:%02d", fourVal, fiveVal, sixVal, hour, minute);
+lcd.print(buffer);
+}
+// end showChannelValues
 
 // void setup
 void setup()
 {
 Wire.begin();
-DHTSetup();
+//DHTSetup();
 
 // setup lcd screen object
 PrintBegin();
@@ -450,6 +467,7 @@ lcd.setCursor(0,1);
 lcd.print("LED Controller");
 delay(5000);
 lcd.clear();
+//lcd.setBacklight(OFF);
 //analogWrite(bkl,bklIdle);
 btnCurrIteration = btnMaxIteration;
 
@@ -504,14 +522,14 @@ void loop(){
   
   //turn the backlight off and reset the menu if the idle time has elapsed
   if(bklTime + bklDelay < millis() && bklTime > 0 ){
-    //lcd.setBacklight(OFF);
+    
     menuCount = 1;
     lcd.clear();
     bklTime = 0;
   }
 
   //iterate through the menus
-  buttons = lcd.readButtons();
+  uint8_t buttons = lcd.readButtons();
   if(buttons & BUTTON_SELECT){
     lcd.setBacklight(ON);
     bklTime = millis();
@@ -525,41 +543,24 @@ void loop(){
 //main screen turn on!!! 
   
   if(menuCount == 1){
-   
     if (minCounter > oldMinCounter){
       lcd.clear();
     }
-    lcd.setCursor(11,0);
-    printHMS(hour, minute, second);
-    lcd.setCursor(0,0);
-    lcd.print(oneVal);
-    lcd.setCursor(4,0);
-    lcd.print(twoVal);
-    lcd.setCursor(8,0);
-    lcd.print(threeVal);
-    lcd.setCursor(0,1);
-    lcd.print(fourVal);
-    lcd.setCursor(4,1);
-    lcd.print(fiveVal);
-    lcd.setCursor(8,1);
-    lcd.print(sixVal);
-    // print temperature/humidity
-    GetDHTData();
-    printTempMenu();
+    showChannelValues();
     //debugging function to use the select button to advance the timer by 1 minute
     //if(select.uniquePress()){setDate(second, minute+1, hour, dayOfWeek, dayOfMonth, month, year);}
   }
   
   //Manual Override Menu
   if(menuCount == 2){
-    buttons = lcd.readButtons();
+   
     lcd.setCursor(0,0);
     lcd.print("Manual Overrides");
     lcd.setCursor(0,1);
     lcd.print("All: ");
-    //buttons = lcd.readButtons();
+   
     if(buttons & BUTTON_RIGHT){
-      //buttons = lcd.readButtons();
+     
       if(menuSelect < 3 ){
         menuSelect++;
         
@@ -610,13 +611,13 @@ void loop(){
     if((buttons & BUTTON_RIGHT) && oneStartMins < 1440){
         oneStartMins++;
         if(onePhotoPeriod >0){onePhotoPeriod--;}
-        else{onePhotoPeriod=1439;}
+        else{onePhotoPeriod=1439;} // 24 hours
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
     }
     if((buttons & BUTTON_LEFT) && oneStartMins > 0){
         oneStartMins--;
-        if(onePhotoPeriod<1439){onePhotoPeriod++;}
+        if(onePhotoPeriod<1439){onePhotoPeriod++;} // LT 24 hours
         else{onePhotoPeriod=0;}
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
@@ -627,9 +628,9 @@ void loop(){
     lcd.setCursor(0,0);
     lcd.print("Channel 1 End");
     lcd.setCursor(0,1);
-    printMins(oneStartMins+onePhotoPeriod, true);
+    printMins(oneStartMins+onePhotoPeriod, true); // add start and duration to calcuate end time
     if(buttons & BUTTON_RIGHT){
-      if(onePhotoPeriod < 1439){
+      if(onePhotoPeriod < 1439){ // 24 hours max
       onePhotoPeriod++;}
       else{
         onePhotoPeriod=0;
@@ -641,7 +642,7 @@ void loop(){
       if(onePhotoPeriod >0){
         onePhotoPeriod--;}
       else{
-        onePhotoPeriod=1439;
+        onePhotoPeriod=1439; // 24 hours
       }
       delay(btnCurrDelay(btnCurrIteration-1));
       bklTime = millis();
