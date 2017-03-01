@@ -1,0 +1,35 @@
+#######################################
+# Syntax Coloring Map For RotaryEncoder
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+RotaryEncoder   KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+attachVariable   KEYWORD2
+detachVariable  KEYWORD2
+ReadButton  KEYWORD2
+isPullup KEYWORD2
+outState KEYWORD2
+setMode KEYWORD2
+makeSafe KEYWORD2
+initPin KEYWORD2
+inState KEYWORD2
+getMode KEYWORD2
+getPin KEYWORD2
+hasTimedOut KEYWORD2
+
+#######################################
+# Instances (KEYWORD2)
+#######################################
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
